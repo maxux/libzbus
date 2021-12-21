@@ -75,19 +75,16 @@ char *zbus_uuid() {
     return strdup(uuid);
 }
 
-zbus_request_t *zbus_request_new(char *target) {
+zbus_request_t *zbus_request_new(char *server, char *object, char *version) {
     zbus_request_t *req = calloc(sizeof(zbus_request_t), 1);
 
-    req->target = strdup(target);
+    req->target = malloc(strlen(server) + strlen(object) + strlen(version) + 4);
+    sprintf(req->target, "%s.%s@%s", server, object, version);
+
+    req->object_name = strdup(object);
+    req->object_version = strdup(version);
     req->id = zbus_uuid();
     req->replyto = zbus_uuid();
-
-    return req;
-}
-
-zbus_request_t *zbus_request_set_object(zbus_request_t *req, char *name, char *version) {
-    req->object_name = strdup(name);
-    req->object_version = strdup(version);
 
     return req;
 }
@@ -137,9 +134,8 @@ void zbus_request_dumps(zbus_request_t *req) {
     printf("[+] zbus: request id    : %s\n", req->id);
     printf("[+] zbus: request target: %s\n", req->target);
     printf("[+] zbus: request reply : %s\n", req->replyto);
-    printf("[+] zbus: request object: %s [%s]\n", req->object_name, req->object_version);
     printf("[+] zbus: request method: %s\n", req->method);
-    printf("[+] zbus: request args  : %d\n", req->argc);
+    printf("[+] zbus: request argc  : %d\n", req->argc);
 }
 
 void zbus_request_free(zbus_request_t *req) {
@@ -356,10 +352,36 @@ void sunpack_free(sunpack_t *sunpack) {
     free(sunpack);
 }
 
+/*
+void sunpack_map_dump(msgpack_object_map *map) {
+    for(int i = 0; i < map->size; i++) {
+        if(map->ptr[i].key.type == MSGPACK_OBJECT_STR)
+            printf(">> MAP: %.*s\n", map->ptr[i].key.via.str);
+
+        if(map->ptr[i].val.type == MSGPACK_OBJECT_MAP)
+            sunpack_map_dump(&map->ptr[i].val.via.map);
+
+        if(map->ptr[i].val.type == MSGPACK_OBJECT_ARRAY) {
+            for(int i = 0; i < map->ptr[i].val.via.array.size; i++) {
+                if(map->ptr[i].val.via.array.ptr[i].type == MSGPACK_OBJECT_MAP)
+                    sunpack_map_dump(&map->ptr[i].val.via.array.ptr[i].via.map);
+
+                if(map->ptr[i].val.via.array.ptr[i].type == MSGPACK_OBJECT_STR)
+                    printf("<< MAP STR: %.*s\n", map->ptr[i].val.via.array.ptr[i].via.str.size, map->ptr[i].val.via.array.ptr[i].via.str.ptr);
+            }
+        }
+
+        if(map->ptr[i].val.type == MSGPACK_OBJECT_STR) {
+            printf("<< MAP STR: %.*s\n", map->ptr[i].val.via.str.size, map->ptr[i].val.via.str.ptr);
+        }
+    }
+}
+*/
+
 zbus_reply_t *zbus_reply_parse(zbus_reply_t *reply) {
     sunpack_t *repack = sunpack_new(reply->raw, reply->rawsize);
 
-    printf("[+] zbus: parsing response [%lu bytes]\n", reply->rawsize);
+    printf("[+] zbus: response: parsing %lu bytes\n", reply->rawsize);
 
     if(repack->obj->type != MSGPACK_OBJECT_MAP) {
         fprintf(stderr, "[-] msgpack: could not parse, map expected\n");
@@ -383,8 +405,28 @@ zbus_reply_t *zbus_reply_parse(zbus_reply_t *reply) {
     msgpack_object_array *args = &map->ptr[1].val.via.array;
     reply->argv = calloc(sizeof(char *), args->size);
 
+    printf("[+] zbus: response: parsing %d arguments\n", args->size);
+
     for(size_t i = 0; i < args->size; i++) {
         sunpack_t *argpack = sunpack_new(args->ptr[i].via.str.ptr, args->ptr[i].via.str.size);
+
+        if(argpack->obj->type != MSGPACK_OBJECT_STR && argpack->obj->type != MSGPACK_OBJECT_MAP)
+            printf("[-] unsupported arg type %d\n", argpack->obj->type);
+
+        if(argpack->obj->type == MSGPACK_OBJECT_MAP) {
+            sunpack_map_dump(&argpack->obj->via.map);
+
+            printf("Map Size: %d\n", argpack->obj->via.map.size);
+            for(int i = 0; i < argpack->obj->via.map.size; i++) {
+                msgpack_object_map *xmap = &argpack->obj->via.map;
+
+                printf("Map KK : %.*s\n", xmap->ptr[i].key.via.str);
+                printf("Map XX : %d\n", xmap->ptr[i].val.type);
+                printf("Map SZ : %d\n", xmap->ptr[i].val.via.array.size);
+
+                printf(">> %d\n", xmap->ptr[i].val.via.array.ptr[0].type);
+            }
+        }
 
         if(argpack->obj->type == MSGPACK_OBJECT_STR)
             reply->argv[i] = strndup(argpack->obj->via.str.ptr, argpack->obj->via.str.size);
@@ -421,14 +463,26 @@ void zbus_reply_dumps(zbus_reply_t *reply) {
 }
 
 int main() {
-    redis_t *redis = redis_new("localhost", 6379);
+    // redis_t *redis = redis_new("localhost", 6379);
+    redis_t *redis = redis_new("10.241.0.29", 6379);
 
-    zbus_request_t *req = zbus_request_new("server.utils@1.0");
-    zbus_request_set_object(req, "utils", "1.0");
+    zbus_request_t *req = zbus_request_new("identityd", "manager", "0.0.1");
+    // zbus_request_set_method(req, "NodeID");
+    // zbus_request_set_method(req, "NodeIDNumeric");
+    zbus_request_set_method(req, "FarmID");
+
+    /*
+    zbus_request_t *req = zbus_request_new("server", "utils", "1.0");
+    zbus_request_set_method(req, "Panic");
+    */
+
+    /*
+    zbus_request_t *req = zbus_request_new("server", "utils", "1.0");
     zbus_request_set_method(req, "Capitalize");
     zbus_request_push_arg(req, "Hello World, Zbus !");
-    zbus_request_dumps(req);
+    */
 
+    zbus_request_dumps(req);
     zbus_protocol_send(redis, req);
 
     zbus_reply_t *reply = zbus_protocol_read(redis, req);
@@ -437,6 +491,7 @@ int main() {
 
     zbus_reply_free(reply);
     zbus_request_free(req);
+
     redis_free(redis);
 
     return 0;

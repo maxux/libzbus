@@ -22,6 +22,7 @@ spack_t *spack_new() {
 
 void spack_free(spack_t *root) {
     msgpack_sbuffer_destroy(&root->sbuf);
+    free(root);
 }
 
 static void spack_pack_str(spack_t *sp, char *value) {
@@ -198,6 +199,15 @@ redis_t *redis_new(char *host, int port) {
     return redis;
 }
 
+void redis_free(redis_t *redis) {
+    redisFree(redis->ctx);
+    free(redis);
+}
+
+
+//
+// zbus protocol
+//
 int zbus_protocol_send(redis_t *redis, zbus_request_t *req) {
     spack_t *root;
 
@@ -275,8 +285,13 @@ zbus_reply_t *zbus_protocol_read(redis_t *redis, zbus_request_t *req) {
         return NULL;
     }
 
-    zreply->raw = sub->str;
+    // FIXME: double allocation
+
+    zreply->raw = malloc(sub->len);
+    memcpy(zreply->raw, sub->str, sub->len);
     zreply->rawsize = sub->len;
+
+    freeReplyObject(reply);
 
     return zreply;
 }
@@ -336,7 +351,9 @@ sunpack_t *sunpack_new(const char *buffer, size_t length) {
 }
 
 void sunpack_free(sunpack_t *sunpack) {
+    msgpack_unpacked_destroy(&sunpack->und);
     msgpack_unpacker_destroy(&sunpack->unp);
+    free(sunpack);
 }
 
 zbus_reply_t *zbus_reply_parse(zbus_reply_t *reply) {
@@ -383,6 +400,19 @@ zbus_reply_t *zbus_reply_parse(zbus_reply_t *reply) {
     return reply;
 }
 
+void zbus_reply_free(zbus_reply_t *reply) {
+    free(reply->raw);
+
+    free(reply->id);
+    free(reply->error);
+
+    for(int i = 0; i < reply->argc; i++)
+        free(reply->argv[i]);
+
+    free(reply->argv);
+    free(reply);
+}
+
 void zbus_reply_dumps(zbus_reply_t *reply) {
     printf("[+] zbus: reply id   : %s\n", reply->id);
     printf("[+] zbus: reply argc : %d\n", reply->argc);
@@ -404,6 +434,10 @@ int main() {
     zbus_reply_t *reply = zbus_protocol_read(redis, req);
     zbus_reply_parse(reply);
     zbus_reply_dumps(reply);
+
+    zbus_reply_free(reply);
+    zbus_request_free(req);
+    redis_free(redis);
 
     return 0;
 }

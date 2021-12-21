@@ -366,7 +366,7 @@ zbus_reply_t *zbus_reply_parse(zbus_reply_t *reply) {
     msgpack_object_array *args = &map->ptr[1].val.via.array;
     reply->argv = calloc(sizeof(char *), args->size);
 
-    for(int i = 0; i < args->size; i++) {
+    for(size_t i = 0; i < args->size; i++) {
         sunpack_t *argpack = sunpack_new(args->ptr[i].via.str.ptr, args->ptr[i].via.str.size);
 
         if(argpack->obj->type == MSGPACK_OBJECT_STR)

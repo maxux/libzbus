@@ -46,12 +46,7 @@ int zbus_protocol_send(redis_t *redis, zbus_request_t *req) {
 // zbus protocol receiver
 //
 zbus_reply_t *zbus_protocol_read(redis_t *redis, zbus_request_t *req) {
-    zbus_reply_t *zreply;
     redisReply *reply;
-
-    if(!(zreply = calloc(sizeof(zbus_reply_t), 1))) {
-        return NULL;
-    }
 
     const char *argv[] = {"BLPOP", req->replyto, "10"};
 
@@ -87,10 +82,7 @@ zbus_reply_t *zbus_protocol_read(redis_t *redis, zbus_request_t *req) {
     }
 
     // FIXME: double allocation
-
-    zreply->raw = malloc(sub->len);
-    memcpy(zreply->raw, sub->str, sub->len);
-    zreply->rawsize = sub->len;
+    zbus_reply_t *zreply = zbus_reply_new(sub->str, sub->len);
 
     freeReplyObject(reply);
 

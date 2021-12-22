@@ -51,6 +51,7 @@
     void zbus_request_dumps(zbus_request_t *req);
 
     // zbus reply
+    zbus_reply_t *zbus_reply_new(char *buffer, size_t length);
     void zbus_reply_free(zbus_reply_t *reply);
     void zbus_reply_dumps(zbus_reply_t *reply);
 

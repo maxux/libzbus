@@ -100,6 +100,21 @@ void zbus_request_free(zbus_request_t *req) {
 //
 // zbus reply
 //
+zbus_reply_t *zbus_reply_new(char *buffer, size_t length) {
+    zbus_reply_t *reply;
+
+    if(!(reply = calloc(sizeof(zbus_reply_t), 1))) {
+        return NULL;
+    }
+
+    reply->raw = malloc(length);
+    memcpy(reply->raw, buffer, length);
+
+    reply->rawsize = length;
+
+    return reply;
+}
+
 void zbus_reply_free(zbus_reply_t *reply) {
     free(reply->raw);
 

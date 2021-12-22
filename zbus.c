@@ -21,13 +21,24 @@ static char *zbus_uuid() {
 // zbus request
 //
 zbus_request_t *zbus_request_new(char *server, char *object, char *version) {
-    zbus_request_t *req = calloc(sizeof(zbus_request_t), 1);
+    zbus_request_t *req;
+
+    if(!(req = calloc(sizeof(zbus_request_t), 1)))
+        return libzbus_warnp("zbus: request: calloc");
 
     req->target = malloc(strlen(server) + strlen(object) + strlen(version) + 4);
     sprintf(req->target, "%s.%s@%s", server, object, version);
 
-    req->object_name = strdup(object);
-    req->object_version = strdup(version);
+    if(!(req->object_name = strdup(object))) {
+        zbus_request_free(req);
+        return libzbus_warnp("zbus: request: strdup");
+    }
+
+    if(!(req->object_version = strdup(version))) {
+        zbus_request_free(req);
+        return libzbus_warnp("zbus: request: strdup");
+    }
+
     req->id = zbus_uuid();
     req->replyto = zbus_uuid();
 
@@ -35,7 +46,8 @@ zbus_request_t *zbus_request_new(char *server, char *object, char *version) {
 }
 
 zbus_request_t *zbus_request_set_method(zbus_request_t *req, char *method) {
-    req->method = strdup(method);
+    if(!(req->method = strdup(method)))
+        return NULL;
 
     return req;
 }
@@ -43,14 +55,20 @@ zbus_request_t *zbus_request_set_method(zbus_request_t *req, char *method) {
 zbus_request_t *zbus_request_push_arg(zbus_request_t *req, char *arg) {
     req->argc += 1;
 
-    req->argv = realloc(req->argv, req->argc * sizeof(char *));
-    req->argv[req->argc - 1] = strdup(arg);
+    if(!(req->argv = realloc(req->argv, req->argc * sizeof(char *))))
+        return NULL;
+
+    if(!(req->argv[req->argc - 1] = strdup(arg)))
+        return NULL;
 
     return req;
 }
 
 spack_t *zbus_request_serialize(zbus_request_t *req) {
-    spack_t *root = spack_new();
+    spack_t *root;
+
+    if(!(root = spack_new()))
+        return NULL;
 
     spack_pack_map(root, 5);
     spack_pack_kv_str(root, "ID", req->id);
@@ -103,13 +121,16 @@ void zbus_request_free(zbus_request_t *req) {
 zbus_reply_t *zbus_reply_new(char *buffer, size_t length) {
     zbus_reply_t *reply;
 
-    if(!(reply = calloc(sizeof(zbus_reply_t), 1))) {
-        return NULL;
+    if(!(reply = calloc(sizeof(zbus_reply_t), 1)))
+        return libzbus_warnp("zbus: reply: calloc");
+
+    if(!(reply->raw = malloc(length))) {
+        zbus_reply_free(reply);
+        return libzbus_warnp("zbus: reply: raw malloc");
     }
 
-    reply->raw = malloc(length);
+    // copy buffer
     memcpy(reply->raw, buffer, length);
-
     reply->rawsize = length;
 
     return reply;

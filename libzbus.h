@@ -79,4 +79,5 @@
 
     // debugging
     void libzbus_diep(char *prefix, char *str);
+    void *libzbus_warnp(char *str);
 #endif

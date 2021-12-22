@@ -62,6 +62,11 @@ zbus_reply_t *zbus_protocol_read(redis_t *redis, zbus_request_t *req) {
         return NULL;
     }
 
+    if(reply->type == REDIS_REPLY_NIL) {
+        freeReplyObject(reply);
+        return NULL;
+    }
+
     if(reply->type != REDIS_REPLY_ARRAY) {
         fprintf(stderr, "[-] redis: reply: wrong array response: %d\n", reply->type);
         return NULL;

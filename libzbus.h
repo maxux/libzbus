@@ -104,6 +104,7 @@
     // zbus protocol
     int zbus_protocol_send(redis_t *redis, zbus_request_t *req);
     zbus_reply_t *zbus_protocol_read(redis_t *redis, zbus_request_t *req);
+    zbus_reply_t *zbus_protocol_issue(redis_t *redis, zbus_request_t *req);
 
     // redis handler
     redis_t *redis_new(char *host, int port);

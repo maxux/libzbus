@@ -98,5 +98,18 @@ zbus_reply_t *zbus_protocol_read(redis_t *redis, zbus_request_t *req) {
     return zreply;
 }
 
+// issue is send + read and parse
+zbus_reply_t *zbus_protocol_issue(redis_t *redis, zbus_request_t *req) {
+    printf("[+] protocol: issue: send request\n");
+    zbus_protocol_send(redis, req);
 
+    printf("[+] protocol: issue: read reply\n");
+    zbus_reply_t *reply;
+    if(!(reply = zbus_protocol_read(redis, req)))
+        return NULL;
 
+    printf("[+] protocol: issue: parse reply\n");
+    zbus_reply_parse(reply);
+
+    return reply;
+}

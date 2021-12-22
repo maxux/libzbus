@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <msgpack.h>
+#include <stdint.h>
 #include <hiredis/hiredis.h>
 #include "libzbus.h"
 
@@ -97,94 +98,64 @@ void sunpack_free(sunpack_t *sunpack) {
     free(sunpack);
 }
 
-/*
-void sunpack_map_dump(msgpack_object_map *map) {
-    for(int i = 0; i < map->size; i++) {
-        if(map->ptr[i].key.type == MSGPACK_OBJECT_STR)
-            printf(">> MAP: %.*s\n", map->ptr[i].key.via.str);
-
-        if(map->ptr[i].val.type == MSGPACK_OBJECT_MAP)
-            sunpack_map_dump(&map->ptr[i].val.via.map);
-
-        if(map->ptr[i].val.type == MSGPACK_OBJECT_ARRAY) {
-            for(int i = 0; i < map->ptr[i].val.via.array.size; i++) {
-                if(map->ptr[i].val.via.array.ptr[i].type == MSGPACK_OBJECT_MAP)
-                    sunpack_map_dump(&map->ptr[i].val.via.array.ptr[i].via.map);
-
-                if(map->ptr[i].val.via.array.ptr[i].type == MSGPACK_OBJECT_STR)
-                    printf("<< MAP STR: %.*s\n", map->ptr[i].val.via.array.ptr[i].via.str.size, map->ptr[i].val.via.array.ptr[i].via.str.ptr);
-            }
-        }
-
-        if(map->ptr[i].val.type == MSGPACK_OBJECT_STR) {
-            printf("<< MAP STR: %.*s\n", map->ptr[i].val.via.str.size, map->ptr[i].val.via.str.ptr);
-        }
-    }
+int sunpack_is_str(msgpack_object *obj) {
+    return (obj->type == MSGPACK_OBJECT_STR);
 }
-*/
 
-zbus_reply_t *zbus_reply_parse(zbus_reply_t *reply) {
-    sunpack_t *repack = sunpack_new(reply->raw, reply->rawsize);
-
-    printf("[+] zbus: response: parsing %lu bytes\n", reply->rawsize);
-
-    if(repack->obj->type != MSGPACK_OBJECT_MAP) {
-        fprintf(stderr, "[-] msgpack: could not parse, map expected\n");
+char *sunpack_str(msgpack_object *obj) {
+    if(obj->via.str.size == 0)
         return NULL;
-    }
 
-    msgpack_object_map *map = &repack->obj->via.map;
-    if(map->size != 3) {
-        fprintf(stderr, "[-] msgpack: wrong map size\n");
-        return NULL;
-    }
+    return strndup(obj->via.str.ptr, obj->via.str.size);
+}
 
-    // copy id
-    reply->id = strndup(map->ptr[0].val.via.str.ptr, map->ptr[0].val.via.str.size);
+int sunpack_is_map(msgpack_object *obj) {
+    return (obj->type == MSGPACK_OBJECT_MAP);
+}
 
-    // only set error if set
-    if(map->ptr[2].val.via.str.size > 0)
-        reply->error = strndup(map->ptr[2].val.via.str.ptr, map->ptr[2].val.via.str.size);
+int sunpack_map_size(msgpack_object_map *obj) {
+    return obj->size;
+}
 
-    // building arguments list
-    msgpack_object_array *args = &map->ptr[1].val.via.array;
-    reply->argv = calloc(sizeof(char *), args->size);
+msgpack_object_map *sunpack_map_get(msgpack_object *obj) {
+    return &obj->via.map;
+}
 
-    printf("[+] zbus: response: parsing %d arguments\n", args->size);
-
-    for(size_t i = 0; i < args->size; i++) {
-        sunpack_t *argpack = sunpack_new(args->ptr[i].via.str.ptr, args->ptr[i].via.str.size);
-
-        if(argpack->obj->type != MSGPACK_OBJECT_STR && argpack->obj->type != MSGPACK_OBJECT_MAP)
-            printf("[-] unsupported arg type %d\n", argpack->obj->type);
-
-        if(argpack->obj->type == MSGPACK_OBJECT_MAP) {
-            // sunpack_map_dump(&argpack->obj->via.map);
-
-            printf("Map Size: %d\n", argpack->obj->via.map.size);
-            for(size_t i = 0; i < argpack->obj->via.map.size; i++) {
-                msgpack_object_map *xmap = &argpack->obj->via.map;
-
-                printf("Map KK : %.*s\n", xmap->ptr[i].key.via.str.size, xmap->ptr[i].key.via.str.ptr);
-                printf("Map XX : %d\n", xmap->ptr[i].val.type);
-                printf("Map SZ : %d\n", xmap->ptr[i].val.via.array.size);
-
-                printf(">> %d\n", xmap->ptr[i].val.via.array.ptr[0].type);
-            }
-        }
-
-        if(argpack->obj->type == MSGPACK_OBJECT_STR)
-            reply->argv[i] = strndup(argpack->obj->via.str.ptr, argpack->obj->via.str.size);
-
-        sunpack_free(argpack);
-
-    }
-
-    reply->argc = args->size;
-
-    sunpack_free(repack);
-
-    return reply;
+char *sunpack_map_val_str(msgpack_object_map *map, int id) {
+    return sunpack_str(&map->ptr[id].val);
 }
 
 
+int sunpack_is_array(msgpack_object *obj) {
+    return (obj->type == MSGPACK_OBJECT_ARRAY);
+}
+
+msgpack_object_array *sunpack_array_get(msgpack_object *obj) {
+    return &obj->via.array;
+}
+
+int sunpack_array_size(msgpack_object_array *array) {
+    return array->size;
+}
+
+// only support few return value parser
+int sunpack_is_supported(msgpack_object *obj) {
+    if(obj->type == MSGPACK_OBJECT_STR)
+        return 1;
+
+    if(obj->type == MSGPACK_OBJECT_MAP)
+        return 1;
+
+    if(obj->type == MSGPACK_OBJECT_POSITIVE_INTEGER)
+        return 1;
+
+    return 0;
+}
+
+int sunpack_is_u32(msgpack_object *obj) {
+    return (obj->type == MSGPACK_OBJECT_POSITIVE_INTEGER);
+}
+
+uint32_t sunpack_u32(msgpack_object *obj) {
+    return obj->via.u64;
+}

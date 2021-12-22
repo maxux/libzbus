@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <msgpack.h>
+#include <stdint.h>
 #include <hiredis/hiredis.h>
 #include "libzbus.h"
 
@@ -8,6 +9,9 @@
 //
 int zbus_protocol_send(redis_t *redis, zbus_request_t *req) {
     spack_t *root;
+
+    // FIXME: if debug
+    zbus_request_dumps(req);
 
     if(!(root = zbus_request_serialize(req))) {
         fprintf(stderr, "[-] redis: cannot serialize request\n");
@@ -48,7 +52,7 @@ int zbus_protocol_send(redis_t *redis, zbus_request_t *req) {
 zbus_reply_t *zbus_protocol_read(redis_t *redis, zbus_request_t *req) {
     redisReply *reply;
 
-    const char *argv[] = {"BLPOP", req->replyto, "10"};
+    const char *argv[] = {"BLPOP", req->replyto, ZBUS_PROTOCOL_TIMEOUT};
 
     printf("[+] redis: wait reply on: %s\n", req->replyto);
 

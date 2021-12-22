@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <msgpack.h>
+#include <stdint.h>
 #include <hiredis/hiredis.h>
 #include "libzbus.h"
 

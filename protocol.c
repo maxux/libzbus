@@ -10,8 +10,8 @@
 int zbus_protocol_send(redis_t *redis, zbus_request_t *req) {
     spack_t *root;
 
-    // FIXME: if debug
-    zbus_request_dumps(req);
+    if(libzbus_debug_flag)
+        zbus_request_dumps(req);
 
     if(!(root = zbus_request_serialize(req))) {
         fprintf(stderr, "[-] redis: cannot serialize request\n");
@@ -22,7 +22,7 @@ int zbus_protocol_send(redis_t *redis, zbus_request_t *req) {
     size_t argvl[] = {5, strlen(req->target), root->sbuf.size};
     redisReply *reply;
 
-    printf("[+] redis: sending serialized request [%lu bytes]\n", root->sbuf.size);
+    libzbus_debug("[+] redis: sending serialized request [%lu bytes]\n", root->sbuf.size);
 
     if(!(reply = redisCommandArgv(redis->ctx, 3, argv, argvl))) {
         fprintf(stderr, "redis: rpush: %s", redis->ctx->errstr);
@@ -54,7 +54,7 @@ zbus_reply_t *zbus_protocol_read(redis_t *redis, zbus_request_t *req) {
 
     const char *argv[] = {"BLPOP", req->replyto, ZBUS_PROTOCOL_TIMEOUT};
 
-    printf("[+] redis: wait reply on: %s\n", req->replyto);
+    libzbus_debug("[+] redis: wait reply on: %s\n", req->replyto);
 
     if(!(reply = redisCommandArgv(redis->ctx, 3, argv, NULL))) {
         fprintf(stderr, "[-] redis: blpop: %s", redis->ctx->errstr);
@@ -100,15 +100,15 @@ zbus_reply_t *zbus_protocol_read(redis_t *redis, zbus_request_t *req) {
 
 // issue is send + read and parse
 zbus_reply_t *zbus_protocol_issue(redis_t *redis, zbus_request_t *req) {
-    printf("[+] protocol: issue: send request\n");
+    libzbus_debug("[+] protocol: issue: send request\n");
     zbus_protocol_send(redis, req);
 
-    printf("[+] protocol: issue: read reply\n");
+    libzbus_debug("[+] protocol: issue: read reply\n");
     zbus_reply_t *reply;
     if(!(reply = zbus_protocol_read(redis, req)))
         return NULL;
 
-    printf("[+] protocol: issue: parse reply\n");
+    libzbus_debug("[+] protocol: issue: parse reply\n");
     zbus_reply_parse(reply);
 
     return reply;

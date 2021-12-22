@@ -12,7 +12,15 @@ static void diep(char *str) {
 int main() {
     redis_t *redis;
 
-    if(!(redis = redis_new("10.241.0.29", 6379)))
+    printf("[+] core: initializing\n");
+    libzbus_debug_set(0);
+
+    char *host = "10.241.0.29";
+    int port = 6379;
+
+    printf("[+] core: connecting redis: %s:%d\n", host, port);
+
+    if(!(redis = redis_new(host, port)))
         diep("redis: new");
 
     retfree zbus_return_t *farmid = identityd_farmid(redis);
@@ -24,9 +32,9 @@ int main() {
     retfree zbus_return_t *farmname = identityd_farm(redis);
     zbus_error_panic(farmname);
 
-    printf("[+] node id  : %u\n", nodeid->v[0].val.u32);
-    printf("[+] farm id  : %u\n", farmid->v[0].val.u32);
-    printf("[+] farm name: %s\n", farmname->v[0].val.str);
+    printf("[+] core: node id  : %u\n", nodeid->v[0].val.u32);
+    printf("[+] core: farm id  : %u\n", farmid->v[0].val.u32);
+    printf("[+] core: farm name: %s\n", farmname->v[0].val.str);
 
     redis_free(redis);
 

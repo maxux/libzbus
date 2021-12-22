@@ -163,13 +163,14 @@ void zbus_reply_free(zbus_reply_t *reply) {
 }
 
 zbus_reply_t *zbus_reply_parse_args(zbus_reply_t *reply, msgpack_object_array *args) {
-    printf("[+] zbus: response: parsing %d arguments\n", reply->argc);
+    libzbus_debug("[+] zbus: response: parsing %d arguments\n", reply->argc);
 
     for(size_t i = 0; i < args->size; i++) {
         sunpack_t *argpack = sunpack_new(args->ptr[i].via.str.ptr, args->ptr[i].via.str.size);
 
-        if(!sunpack_is_supported(argpack->obj))
-            printf("[-] unsupported arg type %d\n", argpack->obj->type);
+        if(!sunpack_is_supported(argpack->obj)) {
+            libzbus_debug("[-] unsupported arg type %d\n", argpack->obj->type);
+        }
 
         /*
         if(argpack->obj->type == MSGPACK_OBJECT_MAP) {
@@ -207,7 +208,7 @@ zbus_reply_t *zbus_reply_parse_args(zbus_reply_t *reply, msgpack_object_array *a
 zbus_reply_t *zbus_reply_parse(zbus_reply_t *reply) {
     sunpack_t *repack = sunpack_new(reply->raw, reply->rawsize);
 
-    printf("[+] zbus: response: parsing %lu bytes\n", reply->rawsize);
+    libzbus_debug("[+] zbus: response: parsing %lu bytes\n", reply->rawsize);
 
     if(!sunpack_is_map(repack->obj)) {
         fprintf(stderr, "[-] msgpack: could not parse, map expected\n");
@@ -242,8 +243,8 @@ zbus_reply_t *zbus_reply_parse(zbus_reply_t *reply) {
     // msgpack buffer not needed anymore
     sunpack_free(repack);
 
-    // FIXME: if debug
-    zbus_reply_dumps(reply);
+    if(libzbus_debug_flag)
+        zbus_reply_dumps(reply);
 
     return reply;
 }

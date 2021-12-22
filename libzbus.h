@@ -135,8 +135,12 @@
     int sunpack_array_size(msgpack_object_array *array);
     void sunpack_free(sunpack_t *sunpack);
 
-
     // debugging
+    void libzbus_debug_set(int flag);
     void libzbus_diep(char *prefix, char *str);
     void *libzbus_warnp(char *str);
+
+    extern int libzbus_debug_flag;
+
+    #define libzbus_debug(...) { if(libzbus_debug_flag) { printf(__VA_ARGS__); } }
 #endif

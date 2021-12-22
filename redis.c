@@ -13,7 +13,7 @@ redis_t *redis_new(char *host, int port) {
     if(!(redis = calloc(sizeof(redis_t), 1)))
         return libzbus_warnp("redis: calloc");
 
-    printf("[+] redis: connecting backend [%s:%d]\n", host, port);
+    libzbus_debug("[+] redis: connecting backend [%s:%d]\n", host, port);
 
     if(!(redis->ctx = redisConnect(host, port))) {
         fprintf(stderr, "[-] redis: connect: [%s:%d]: cannot initialize context\n", host, port);

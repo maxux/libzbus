@@ -76,4 +76,7 @@
     sunpack_t *sunpack_new(const char *buffer, size_t length);
     void sunpack_free(sunpack_t *sunpack);
     zbus_reply_t *zbus_reply_parse(zbus_reply_t *reply);
+
+    // debugging
+    void libzbus_diep(char *prefix, char *str);
 #endif

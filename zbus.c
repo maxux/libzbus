@@ -5,7 +5,7 @@
 #include "libzbus.h"
 
 //
-// zbus uuid generator
+// zbus internal uuid generator
 //
 static char *zbus_uuid() {
     uuid_t binuuid;
